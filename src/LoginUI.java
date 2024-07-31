@@ -7,21 +7,19 @@ public class LoginUI {
     private JFrame frame;
     private JTextField usernameField;
     private JPasswordField passwordField;
-    private JButton loginButton;
-    private JButton registerButton;
-    private TaskManager taskManager;
     private UserManager userManager;
+    private TaskManager taskManager;
 
-    public LoginUI() {
-        taskManager = new TaskManager();  // Instantiate TaskManager for task operations
-        userManager = new UserManager();  // Instantiate UserManager for user operations
+    public LoginUI(UserManager userManager, TaskManager taskManager) {
+        this.userManager = userManager;
+        this.taskManager = taskManager;
 
         frame = new JFrame("Login");
         frame.setSize(300, 200);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         JPanel panel = new JPanel();
-        panel.setLayout(new GridLayout(4, 2));  // Adjust grid layout to fit all components
+        panel.setLayout(new GridLayout(3, 2));
 
         JLabel usernameLabel = new JLabel("Username:");
         panel.add(usernameLabel);
@@ -35,20 +33,32 @@ public class LoginUI {
         passwordField = new JPasswordField();
         panel.add(passwordField);
 
-        loginButton = new JButton("Login");
+        JButton loginButton = new JButton("Login");
         loginButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                login();
+                String username = usernameField.getText();
+                String password = new String(passwordField.getPassword());
+
+                if (userManager.authenticateUser(username, password)) {
+                    int userId = userManager.getUserId(username);
+                    new TaskManagerUI(username, userId, taskManager);
+                    frame.dispose();
+                } else {
+                    JOptionPane.showMessageDialog(frame, "Invalid credentials!", "Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
         });
         panel.add(loginButton);
 
-        registerButton = new JButton("Register");
+        JButton registerButton = new JButton("Register");
         registerButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                register();
+                String username = usernameField.getText();
+                String password = new String(passwordField.getPassword());
+                userManager.registerUser(username, password);
+                JOptionPane.showMessageDialog(frame, "Registration successful! Please login.");
             }
         });
         panel.add(registerButton);
@@ -57,46 +67,9 @@ public class LoginUI {
         frame.setVisible(true);
     }
 
-    private void login() {
-        String username = usernameField.getText();
-        char[] passwordChars = passwordField.getPassword();
-        String password = new String(passwordChars);  // Convert char array to String
-
-        // Validate username and password against database using UserManager
-        boolean isValidUser = userManager.authenticateUser(username, password);
-
-        if (isValidUser) {
-            JOptionPane.showMessageDialog(frame, "Login successful!");
-            openTaskManagerUI(username);  // Open Task Manager UI after successful login
-        } else {
-            JOptionPane.showMessageDialog(frame, "Invalid username or password.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void register() {
-        String username = usernameField.getText();
-        char[] passwordChars = passwordField.getPassword();
-        String password = new String(passwordChars);  // Convert char array to String
-
-        boolean isRegistered = userManager.registerUser(username, password);
-
-        if (isRegistered) {
-            JOptionPane.showMessageDialog(frame, "Registration successful! You can now log in.");
-        } else {
-            JOptionPane.showMessageDialog(frame, "Registration failed. Username may already be taken.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void openTaskManagerUI(String username) {
-        frame.dispose();  // Close the login window
-        new TaskManagerUI(username, taskManager);  // Pass username and TaskManager instance to TaskManagerUI
-    }
-
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                new LoginUI();
-            }
-        });
+        UserManager userManager = new UserManager();
+        TaskManager taskManager = new TaskManager();
+        new LoginUI(userManager, taskManager);
     }
 }

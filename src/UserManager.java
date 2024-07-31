@@ -1,7 +1,4 @@
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,7 +6,28 @@ public class UserManager {
     private Connection connection;
 
     public UserManager() {
-        this.connection = DatabaseConnection.getConnection();
+        try {
+            this.connection = DatabaseConnection.getConnection();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Failed to connect to the database.");
+        }
+    }
+
+    public void registerUser(String username, String password) {
+        String query = "INSERT INTO users (username, password) VALUES (?, ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, username);
+            stmt.setString(2, password);
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                System.out.println("User registered successfully.");
+            } else {
+                System.out.println("User registration failed.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     public boolean authenticateUser(String username, String password) {
@@ -17,39 +35,42 @@ public class UserManager {
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, username);
             stmt.setString(2, password);
-            ResultSet rs = stmt.executeQuery();
-            return rs.next();
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next(); // returns true if a row is found
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return false;
     }
 
-    public boolean registerUser(String username, String password) {
-        // Check if the user already exists
-        String checkUserQuery = "SELECT * FROM users WHERE username = ?";
-        try (PreparedStatement checkStmt = connection.prepareStatement(checkUserQuery)) {
-            checkStmt.setString(1, username);
-            ResultSet rs = checkStmt.executeQuery();
-            if (rs.next()) {
-                // User already exists
-                return false;
+    public List<String> getAllUsernames() {
+        List<String> usernames = new ArrayList<>();
+        String query = "SELECT username FROM users";
+        try (PreparedStatement stmt = connection.prepareStatement(query);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                usernames.add(rs.getString("username"));
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            return false;
         }
+        return usernames;
+    }
 
-        // Insert new user into the database
-        String insertUserQuery = "INSERT INTO users (username, password) VALUES (?, ?)";
-        try (PreparedStatement insertStmt = connection.prepareStatement(insertUserQuery)) {
-            insertStmt.setString(1, username);
-            insertStmt.setString(2, password);
-            int rowsAffected = insertStmt.executeUpdate();
-            return rowsAffected > 0;
+    // New method to get user ID by username
+    public int getUserId(String username) {
+        String query = "SELECT id FROM users WHERE username = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setString(1, username);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("id");
+                }
+            }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return false;
+        return -1; // Return -1 if user is not found
     }
 }

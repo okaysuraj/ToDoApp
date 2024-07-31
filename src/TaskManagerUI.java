@@ -1,15 +1,19 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.List;
 
 public class TaskManagerUI {
     private JFrame frame;
     private String username;
+    private int userId;
     private TaskManager taskManager;
     private JTextArea taskTextArea;
 
-    public TaskManagerUI(String username, TaskManager taskManager) {
+    public TaskManagerUI(String username, int userId, TaskManager taskManager) {
         this.username = username;
+        this.userId = userId;
         this.taskManager = taskManager;
 
         frame = new JFrame("Task Manager");
@@ -25,13 +29,13 @@ public class TaskManagerUI {
         frame.add(scrollPane, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new GridLayout(1, 3));
+        buttonPanel.setLayout(new GridLayout(1, 4));
 
         JButton addButton = new JButton("Add Task");
         addButton.addActionListener(e -> {
             String taskDescription = JOptionPane.showInputDialog(frame, "Enter task description:");
-            if (taskDescription != null && !taskDescription.isEmpty()) {
-                Task task = new Task(taskDescription);
+            if (taskDescription != null && !taskDescription.trim().isEmpty()) {
+                Task task = new Task(taskDescription, userId);
                 taskManager.addTask(task);
                 updateTaskList();
             }
@@ -40,39 +44,54 @@ public class TaskManagerUI {
 
         JButton updateButton = new JButton("Update Task");
         updateButton.addActionListener(e -> {
-            String oldDescription = JOptionPane.showInputDialog(frame, "Enter task description to update:");
-            if (oldDescription != null && !oldDescription.isEmpty()) {
-                String newDescription = JOptionPane.showInputDialog(frame, "Enter new task description:");
-                if (newDescription != null && !newDescription.isEmpty()) {
-                    taskManager.updateTask(oldDescription, newDescription);
-                    updateTaskList();
-                }
+            String oldDescription = JOptionPane.showInputDialog(frame, "Enter current task description:");
+            String newDescription = JOptionPane.showInputDialog(frame, "Enter new task description:");
+            if (oldDescription != null && newDescription != null && !oldDescription.trim().isEmpty() && !newDescription.trim().isEmpty()) {
+                taskManager.updateTask(oldDescription, newDescription, userId);
+                updateTaskList();
             }
         });
         buttonPanel.add(updateButton);
 
         JButton deleteButton = new JButton("Delete Task");
         deleteButton.addActionListener(e -> {
-            String taskDescription = JOptionPane.showInputDialog(frame, "Enter task description to delete:");
-            if (taskDescription != null && !taskDescription.isEmpty()) {
-                taskManager.deleteTask(taskDescription);
+            String description = JOptionPane.showInputDialog(frame, "Enter task description to delete:");
+            if (description != null && !description.trim().isEmpty()) {
+                taskManager.deleteTask(description, userId);
                 updateTaskList();
             }
         });
         buttonPanel.add(deleteButton);
 
+        JButton completeButton = new JButton("Toggle Complete");
+        completeButton.addActionListener(e -> {
+            String description = JOptionPane.showInputDialog(frame, "Enter task description to toggle completion:");
+            if (description != null && !description.trim().isEmpty()) {
+                List<Task> tasks = taskManager.getAllTasks(userId);
+                for (Task task : tasks) {
+                    if (task.getDescription().equals(description)) {
+                        task.setCompleted(!task.isCompleted());
+                        taskManager.updateTask(task.getDescription(), task.getDescription(), userId);
+                        break;
+                    }
+                }
+                updateTaskList();
+            }
+        });
+        buttonPanel.add(completeButton);
+
         frame.add(buttonPanel, BorderLayout.SOUTH);
+        frame.setVisible(true);
 
         updateTaskList();
-
-        frame.setVisible(true);
     }
 
     private void updateTaskList() {
+        List<Task> tasks = taskManager.getAllTasks(userId);
         taskTextArea.setText("");
-        List<Task> tasks = taskManager.getAllTasks();
         for (Task task : tasks) {
-            taskTextArea.append(task.getDescription() + (task.isCompleted() ? " (Completed)" : " (Pending)") + "\n");
+            String taskText = task.getDescription() + (task.isCompleted() ? " [Completed]" : "");
+            taskTextArea.append(taskText + "\n");
         }
     }
 }

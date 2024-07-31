@@ -6,14 +6,20 @@ public class TaskManager {
     private Connection connection;
 
     public TaskManager() {
-        this.connection = DatabaseConnection.getConnection();
+        try {
+            this.connection = DatabaseConnection.getConnection();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Failed to connect to the database.");
+        }
     }
 
     public void addTask(Task task) {
-        String query = "INSERT INTO tasks (description, completed) VALUES (?, ?)";
+        String query = "INSERT INTO tasks (description, completed, user_id) VALUES (?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, task.getDescription());
             stmt.setBoolean(2, task.isCompleted());
+            stmt.setInt(3, task.getUserId());
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected > 0) {
                 System.out.println("Task added successfully.");
@@ -25,11 +31,12 @@ public class TaskManager {
         }
     }
 
-    public void updateTask(String oldDescription, String newDescription) {
-        String query = "UPDATE tasks SET description = ? WHERE description = ?";
+    public void updateTask(String oldDescription, String newDescription, int userId) {
+        String query = "UPDATE tasks SET description = ? WHERE description = ? AND user_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, newDescription);
             stmt.setString(2, oldDescription);
+            stmt.setInt(3, userId);
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected > 0) {
                 System.out.println("Task updated successfully.");
@@ -41,10 +48,11 @@ public class TaskManager {
         }
     }
 
-    public void deleteTask(String description) {
-        String query = "DELETE FROM tasks WHERE description = ?";
+    public void deleteTask(String description, int userId) {
+        String query = "DELETE FROM tasks WHERE description = ? AND user_id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             stmt.setString(1, description);
+            stmt.setInt(2, userId);
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected > 0) {
                 System.out.println("Task deleted successfully.");
@@ -56,16 +64,19 @@ public class TaskManager {
         }
     }
 
-    public List<Task> getAllTasks() {
+    public List<Task> getAllTasks(int userId) {
         List<Task> tasks = new ArrayList<>();
-        String query = "SELECT * FROM tasks";
-        try (Statement stmt = connection.createStatement(); ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                int id = rs.getInt("id");
-                String description = rs.getString("description");
-                boolean completed = rs.getBoolean("completed");
-                Task task = new Task(id, description, completed);
-                tasks.add(task);
+        String query = "SELECT * FROM tasks WHERE user_id = ?";
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setInt(1, userId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    int id = rs.getInt("id");
+                    String description = rs.getString("description");
+                    boolean completed = rs.getBoolean("completed");
+                    Task task = new Task(id, description, completed, userId);
+                    tasks.add(task);
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
